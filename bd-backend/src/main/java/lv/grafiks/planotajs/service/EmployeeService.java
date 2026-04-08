@@ -20,7 +20,7 @@ public class EmployeeService {
     }
 
     public Employee getById(Long id){
-        return employeeRepository.findById(id).get()
+        return employeeRepository.findById(id).get();
     }
 
     public Employee save(Employee employee) {
