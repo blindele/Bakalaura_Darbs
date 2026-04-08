@@ -19,6 +19,10 @@ public class Employee {
     @Column(nullable = false)
     private String surname;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Gender gender;
+
     @Column(nullable = false)
     private LocalDate birthDate;
 
