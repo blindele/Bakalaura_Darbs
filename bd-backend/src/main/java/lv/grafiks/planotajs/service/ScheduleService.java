@@ -4,9 +4,11 @@ import lv.grafiks.planotajs.model.Schedule;
 import lv.grafiks.planotajs.model.Shift;
 import lv.grafiks.planotajs.repository.ScheduleRepository;
 import lv.grafiks.planotajs.repository.ShiftRepository;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@Service
 public class ScheduleService {
 
     private ScheduleRepository scheduleRepository;
