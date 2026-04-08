@@ -21,10 +21,10 @@ public class Shift {
     @JoinColumn(name = "schedule_id", nullable = false)
     private Schedule schedule;
 
-    @Column(nullable = false)
+    @Column(name = "shift_start", nullable = false)
     private LocalDateTime start;
 
-    @Column(nullable = false)
+    @Column(name = "shift_end", nullable = false)
     private LocalDateTime end;
 
     public long getDurationHours() {
