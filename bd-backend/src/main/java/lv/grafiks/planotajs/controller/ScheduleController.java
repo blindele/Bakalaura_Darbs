@@ -1,20 +1,34 @@
 package lv.grafiks.planotajs.controller;
 
+import lv.grafiks.planotajs.model.Employee;
 import lv.grafiks.planotajs.model.Schedule;
 import lv.grafiks.planotajs.model.Shift;
+import lv.grafiks.planotajs.repository.EmployeeRepository;
+import lv.grafiks.planotajs.repository.ScheduleRepository;
+import lv.grafiks.planotajs.repository.ShiftRepository;
 import lv.grafiks.planotajs.service.ScheduleService;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/schedules")
 public class ScheduleController {
 
+    private final EmployeeRepository employeeRepository;
+    private final ScheduleRepository scheduleRepository;
+    private final ShiftRepository shiftRepository;
     private ScheduleService scheduleService;
 
-    public ScheduleController(ScheduleService scheduleService) {
+    public ScheduleController(ScheduleService scheduleService, EmployeeRepository employeeRepository, ScheduleRepository scheduleRepository, ShiftRepository shiftRepository) {
         this.scheduleService = scheduleService;
+        this.employeeRepository = employeeRepository;
+        this.scheduleRepository = scheduleRepository;
+        this.shiftRepository = shiftRepository;
     }
 
     @PostMapping
@@ -45,6 +59,29 @@ public class ScheduleController {
     @DeleteMapping("/shifts/{id}")
     public void deleteShift(@PathVariable long id) {
         scheduleService.deleteShift(id);
+    }
+
+    @GetMapping("/{year}/{month}/view")
+    public Map<String, Object> getScheduleView(@PathVariable int year, @PathVariable int month) {
+
+        List<Employee> employees = employeeRepository.findAll();
+
+        List<String> days = new ArrayList<>();
+        LocalDate start = LocalDate.of(year, month, 1);
+        LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
+        for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
+            days.add(d.toString());
+        }
+
+        Optional<Schedule> scheduleOpt = scheduleRepository.findByYearAndMonth(year, month);
+        if (scheduleOpt.isEmpty()) {
+            return Map.of("employees", employees, "days", days, "shifts", List.of());
+        }
+
+        Schedule schedule = scheduleOpt.get();
+        List<Shift> shifts = shiftRepository.findByScheduleId(schedule.getId());
+
+        return Map.of("employees", employees, "days", days, "shifts", shifts, "scheduleId", schedule.getId());
     }
 
 
