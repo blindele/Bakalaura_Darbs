@@ -62,6 +62,7 @@ public class ScheduleGenerator {
 
         long shiftHours = java.time.Duration.between(shiftStart, shiftEnd).toHours();
 
+        int offset = 0;
         for (Employee employee : selected) {
             boolean isMinor = !employee.isAdult(LocalDate.of(year, month, 1));
 
@@ -73,7 +74,8 @@ public class ScheduleGenerator {
             int totalDays = LocalDate.of(year, month, 1).lengthOfMonth();
             neededWorkDays = Math.min(neededWorkDays, totalDays);
 
-            List<LocalDate> workDays = greedyAssign(year, month, neededWorkDays, isMinor);
+            List<LocalDate> workDays = greedyAssign(year, month, neededWorkDays, isMinor, offset);
+            offset++;
 
             for (LocalDate day : workDays) {
                 Shift shift = new Shift();
@@ -87,36 +89,34 @@ public class ScheduleGenerator {
         return schedule;
     }
 
-    private List<LocalDate> greedyAssign(int year, int month, int neededWorkDays, boolean isMinor) {
+    private List<LocalDate> greedyAssign(int year, int month, int neededWorkDays,
+                                         boolean isMinor, int offset) {
         List<LocalDate> workDays = new ArrayList<>();
-        Map<Integer, Integer> weekOffCount = new HashMap<>();
-
         LocalDate start = LocalDate.of(year, month, 1);
         LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
 
+        Set<DayOfWeek> offDays;
+        if (isMinor) {
+            offDays = Set.of(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY);
+        } else {
+            List<DayOfWeek> allDays = List.of(
+                    DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
+                    DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY,
+                    DayOfWeek.SUNDAY
+            );
+            int first = offset % 7;
+            int second = (offset + 1) % 7;
+            offDays = Set.of(allDays.get(first), allDays.get(second));
+        }
+
         for (LocalDate day = start; !day.isAfter(end); day = day.plusDays(1)) {
             if (workDays.size() >= neededWorkDays) break;
-
-            int weekNumber = day.get(java.time.temporal.WeekFields.ISO.weekOfWeekBasedYear());
-            int offInWeek  = weekOffCount.getOrDefault(weekNumber, 0);
-            DayOfWeek dow = day.getDayOfWeek();
-
-            if(isMinor && (dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY)) {
-                weekOffCount.merge(weekNumber, 1, Integer::sum);
-                continue;
+            if (!offDays.contains(day.getDayOfWeek())) {
+                workDays.add(day);
             }
-
-            if(!isMinor && offInWeek < 2 && (dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY)) {
-                weekOffCount.merge(weekNumber, 1, Integer::sum);
-                continue;
-            }
-
-            workDays.add(day);
-
         }
 
         return workDays;
-
     }
 
 }
