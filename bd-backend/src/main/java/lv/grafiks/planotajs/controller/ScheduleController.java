@@ -1,5 +1,7 @@
 package lv.grafiks.planotajs.controller;
 
+import lv.grafiks.planotajs.algorithm.ScheduleGenerator;
+import lv.grafiks.planotajs.dto.GenerateScheduleRequest;
 import lv.grafiks.planotajs.model.Employee;
 import lv.grafiks.planotajs.model.Schedule;
 import lv.grafiks.planotajs.model.Shift;
@@ -22,13 +24,15 @@ public class ScheduleController {
     private final EmployeeRepository employeeRepository;
     private final ScheduleRepository scheduleRepository;
     private final ShiftRepository shiftRepository;
+    private final ScheduleGenerator scheduleGenerator;
     private ScheduleService scheduleService;
 
-    public ScheduleController(ScheduleService scheduleService, EmployeeRepository employeeRepository, ScheduleRepository scheduleRepository, ShiftRepository shiftRepository) {
+    public ScheduleController(ScheduleService scheduleService, EmployeeRepository employeeRepository, ScheduleRepository scheduleRepository, ShiftRepository shiftRepository, ScheduleGenerator scheduleGenerator) {
         this.scheduleService = scheduleService;
         this.employeeRepository = employeeRepository;
         this.scheduleRepository = scheduleRepository;
         this.shiftRepository = shiftRepository;
+        this.scheduleGenerator = scheduleGenerator;
     }
 
     @PostMapping
@@ -82,6 +86,11 @@ public class ScheduleController {
         List<Shift> shifts = shiftRepository.findByScheduleId(schedule.getId());
 
         return Map.of("employees", employees, "days", days, "shifts", shifts, "scheduleId", schedule.getId());
+    }
+
+    @PostMapping("/generate")
+    public Schedule generate(@RequestBody GenerateScheduleRequest request) {
+        return scheduleGenerator.generate(request);
     }
 
 
