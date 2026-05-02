@@ -1,6 +1,5 @@
 package lv.grafiks.planotajs.algorithm;
 
-
 import lv.grafiks.planotajs.dto.GenerateScheduleRequest;
 import lv.grafiks.planotajs.model.*;
 import lv.grafiks.planotajs.repository.EmployeeRepository;
@@ -13,6 +12,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.WeekFields;
 import java.util.*;
 
 @Component
@@ -39,84 +39,123 @@ public class ScheduleGenerator {
         LocalTime shiftStart = LocalTime.parse(request.getShiftStart());
         LocalTime shiftEnd = LocalTime.parse(request.getShiftEnd());
         int requiredEmployees = request.getRequiredEmployees();
+        int minPerDay = request.getMinEmployeesPerDay();
 
-        MonthNorm norm = monthNormRepository.findByYearAndMonth(year, month).orElseThrow(() -> new RuntimeException("Mēneša norma nav atrasta"));
+
+        MonthNorm norm = monthNormRepository.findByYearAndMonth(year, month)
+                .orElseThrow(() -> new RuntimeException("Mēneša norma nav atrasta"));
 
         List<Employee> allEmployees = employeeRepository.findAll();
         if (allEmployees.size() < requiredEmployees) {
             throw new RuntimeException("Nepietiekami darbinieku");
         }
-        Collections.shuffle(allEmployees);
-        List<Employee> selected = allEmployees.subList(0, requiredEmployees);
 
-        Schedule schedule = scheduleRepository.findByYearAndMonth(year, month).orElse(new Schedule());
+        Collections.shuffle(allEmployees);
+        List<Employee> selected = new ArrayList<>(allEmployees.subList(0, requiredEmployees));
+
+        Schedule schedule = scheduleRepository.findByYearAndMonth(year, month)
+                .orElse(new Schedule());
         schedule.setYear(year);
         schedule.setMonth(month);
         schedule.setPeriodStart(LocalDate.of(year, month, 1));
-        schedule.setPeriodEnd(LocalDate.of(year, month, 1).withDayOfMonth(
-                LocalDate.of(year, month, 1).lengthOfMonth()));
+        schedule.setPeriodEnd(LocalDate.of(year, month, 1)
+                .withDayOfMonth(LocalDate.of(year, month, 1).lengthOfMonth()));
         schedule.setStatus(ScheduleStatus.GENERATED);
         schedule = scheduleRepository.save(schedule);
 
         shiftRepository.deleteAll(shiftRepository.findByScheduleId(schedule.getId()));
 
         long shiftHours = java.time.Duration.between(shiftStart, shiftEnd).toHours();
+        int totalDays = LocalDate.of(year, month, 1).lengthOfMonth();
+        int maxDayOff = requiredEmployees - minPerDay;
 
-        int offset = 0;
-        for (Employee employee : selected) {
+        int neededWorkDays = (int) Math.ceil((double) norm.getWorkingHours() / shiftHours);
+        neededWorkDays = Math.min(neededWorkDays, totalDays);
+
+        LocalDate start = LocalDate.of(year, month, 1);
+        LocalDate end = start.withDayOfMonth(totalDays);
+
+
+        Map<LocalDate, Integer> dayOffCount = new HashMap<>();
+        for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
+            dayOffCount.put(d, 0);
+        }
+
+        for (int i = 0; i < selected.size(); i++) {
+            Employee employee = selected.get(i);
             boolean isMinor = !employee.isAdult(LocalDate.of(year, month, 1));
 
-            if (isMinor && (shiftHours > 7 || shiftEnd.isAfter(LocalTime.of(22,0)))) {
+            if(isMinor && (shiftHours > 7 || shiftEnd.isAfter(LocalTime.of(22,0)))) {
                 continue;
             }
 
-            int neededWorkDays = (int) Math.ceil((double) norm.getWorkingHours() / shiftHours);
-            int totalDays = LocalDate.of(year, month, 1).lengthOfMonth();
-            neededWorkDays = Math.min(neededWorkDays, totalDays);
+            Map<Integer, List<LocalDate>> weekDays = new LinkedHashMap<>();
+            for(LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
+                int week = d.get(WeekFields.ISO.weekOfWeekBasedYear());
+                weekDays.computeIfAbsent(week, k -> new ArrayList<>()).add(d);
+            }
 
-            List<LocalDate> workDays = greedyAssign(year, month, neededWorkDays, isMinor, offset);
-            offset++;
+            Set<LocalDate> offDaySet = new LinkedHashSet<>();
+            for (Map.Entry<Integer, List<LocalDate>> entry : weekDays.entrySet()) {
+                List<LocalDate> week = entry.getValue();
+
+                if(isMinor) {
+                    for(LocalDate d : week) {
+                        if(d.getDayOfWeek() == DayOfWeek.SATURDAY
+                        || d.getDayOfWeek() == DayOfWeek.SUNDAY) {
+                            offDaySet.add(d);
+                        }
+                    }
+                } else {
+                    int off1 = i % week.size();
+                    int off2 = (off1 + 1) % week.size();
+                    for (int j = 0; j < week.size(); j++) {
+                        if(j == off1 || j == off2) {
+                            offDaySet.add(week.get(j));
+                        }
+                    }
+                }
+            }
+
+            List<LocalDate> workDays = new ArrayList<>();
+
+
+            for(LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
+                boolean isOffDay = offDaySet.contains(d);
+
+                if (isOffDay && dayOffCount.get(d) < maxDayOff) {
+                    dayOffCount.put(d, dayOffCount.get(d) + 1);
+                } else {
+                    workDays.add(d);
+                }
+            }
+
+        if (workDays.size() > neededWorkDays) {
+            List<LocalDate> trimmed = new ArrayList<>();
+            int daysSkipped = 0;
+            int extra = workDays.size() - neededWorkDays;
 
             for (LocalDate day : workDays) {
-                Shift shift = new Shift();
-                shift.setEmployee(employee);
-                shift.setSchedule(schedule);
-                shift.setStart(LocalDateTime.of(day, shiftStart));
-                shift.setEnd(LocalDateTime.of(day, shiftEnd));
-                shiftRepository.save(shift);
+                if(daysSkipped < extra && dayOffCount.get(day) < maxDayOff){
+                    dayOffCount.put(day, dayOffCount.get(day) + 1);
+                    daysSkipped++;
+                } else{
+                    trimmed.add(day);
+                }
             }
+            workDays = trimmed;
         }
+
+        for(LocalDate day: workDays){
+            Shift shift = new Shift();
+            shift.setEmployee(employee);
+            shift.setSchedule(schedule);
+            shift.setStart(LocalDateTime.of(day, shiftStart));
+            shift.setEnd(LocalDateTime.of(day, shiftEnd));
+            shiftRepository.save(shift);
+        }
+    }
         return schedule;
+
     }
-
-    private List<LocalDate> greedyAssign(int year, int month, int neededWorkDays,
-                                         boolean isMinor, int offset) {
-        List<LocalDate> workDays = new ArrayList<>();
-        LocalDate start = LocalDate.of(year, month, 1);
-        LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
-
-        Set<DayOfWeek> offDays;
-        if (isMinor) {
-            offDays = Set.of(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY);
-        } else {
-            List<DayOfWeek> allDays = List.of(
-                    DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
-                    DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY,
-                    DayOfWeek.SUNDAY
-            );
-            int first = offset % 7;
-            int second = (offset + 1) % 7;
-            offDays = Set.of(allDays.get(first), allDays.get(second));
-        }
-
-        for (LocalDate day = start; !day.isAfter(end); day = day.plusDays(1)) {
-            if (workDays.size() >= neededWorkDays) break;
-            if (!offDays.contains(day.getDayOfWeek())) {
-                workDays.add(day);
-            }
-        }
-
-        return workDays;
-    }
-
 }

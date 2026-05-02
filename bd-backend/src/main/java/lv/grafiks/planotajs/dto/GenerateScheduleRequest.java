@@ -9,5 +9,6 @@ public class GenerateScheduleRequest {
     private String shiftStart;
     private String shiftEnd;
     private int requiredEmployees;
+    private int minEmployeesPerDay;
 }
 

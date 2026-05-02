@@ -8,6 +8,7 @@ function GeneratePage() {
         shiftStart: "11:00",
         shiftEnd: "20:00",
         requiredEmployees: 14,
+        minEmployeesPerDay: 8,
     });
 
     const [message, setMessage] = useState("");
@@ -25,6 +26,7 @@ function GeneratePage() {
             year: Number(form.year),
             month: Number(form.month),
             requiredEmployees: Number(form.requiredEmployees),
+            minEmployeesPerDay: Number(form.minEmployeesPerDay),
         })
         .then(() => setMessage("Grafiks izveidots!"))
         .catch((err) => setMessage("Kļūda " + (err.response?.data || err.message)))
@@ -35,7 +37,7 @@ function GeneratePage() {
     return (
         <div>
             <h1>Ģenerēt grafiku</h1>
-            <form onSubmit={handleChange}>
+            <form onSubmit={handleSubmit}>
                 <div>
                     <label>Gads:</label>
                     <select name="year" value={form.year} onChange={handleChange}>
@@ -80,6 +82,17 @@ function GeneratePage() {
                     onChange={handleChange}
                     min={1}
                     required
+                    />
+                </div>
+                <div>
+                    <label>Minimālais darbinieku skaits dienā:</label>
+                    <input
+                        type="number"
+                        name="minEmployeesPerDay"
+                        value={form.minEmployeesPerDay}
+                        onChange={handleChange}
+                        min={1}
+                        required
                     />
                 </div>
                 <button type="button" onClick={handleSubmit} disabled={loading}>
