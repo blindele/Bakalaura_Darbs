@@ -3,6 +3,7 @@ package lv.grafiks.planotajs.config;
 import lv.grafiks.planotajs.model.*;
 import lv.grafiks.planotajs.repository.*;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -12,11 +13,16 @@ public class DataInitializer implements CommandLineRunner {
 
     private final EmployeeRepository employeeRepository;
     private final MonthNormRepository monthNormRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final UserRepository userRepository;
 
     public DataInitializer(EmployeeRepository employeeRepository,
-                           MonthNormRepository monthNormRepository) {
+                           MonthNormRepository monthNormRepository,
+                           PasswordEncoder passwordEncoder, UserRepository userRepository) {
         this.employeeRepository = employeeRepository;
         this.monthNormRepository = monthNormRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -55,5 +61,14 @@ public class DataInitializer implements CommandLineRunner {
                 monthNormRepository.save(norm);
             }
         }
+
+        if(userRepository.count() == 0) {
+            User admin = new User();
+            admin.setEmail("admin@ventspils.lv");
+            admin.setPassword(passwordEncoder.encode("admin123"));
+            admin.setRole(Role.ADMIN);
+            userRepository.save(admin);
+        }
+
     }
 }
