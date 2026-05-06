@@ -1,5 +1,6 @@
 package lv.grafiks.planotajs.controller;
 
+import lv.grafiks.planotajs.dto.CreateEmployeeResponse;
 import lv.grafiks.planotajs.model.Employee;
 import lv.grafiks.planotajs.repository.EmployeeRepository;
 import lv.grafiks.planotajs.service.EmployeeService;
@@ -27,8 +28,8 @@ public class EmployeeController {
     }
 
     @PostMapping
-    public Employee create(@RequestBody Employee employee){
-        return employeeService.save(employee);
+    public CreateEmployeeResponse create(@RequestParam String email, @RequestBody Employee employee){
+        return employeeService.save(employee,email);
     }
 
     @DeleteMapping("/{id}")
@@ -37,9 +38,9 @@ public class EmployeeController {
     }
 
     @PostMapping("/{id}")
-    public Employee update(@PathVariable Long id, @RequestBody Employee employee){
+    public CreateEmployeeResponse update(@PathVariable Long id, @RequestParam String email ,@RequestBody Employee employee){
         employee.setId(id);
-        return employeeService.save(employee);
+        return employeeService.save(employee,email);
     }
 
 }

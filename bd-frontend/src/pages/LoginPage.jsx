@@ -17,7 +17,7 @@ function LoginPage() {
             .then(res => {
                 localStorage.setItem("token", res.data.token);
                 localStorage.setItem("role", res.data.role);
-                navigate("/employees");
+                window.location.href = "/employees";
             })
             .catch(() => setError("Nepareizs e-pasts vai parole!"));
     };

@@ -7,8 +7,11 @@ function EmployeesPage() {
     name: "",
     surname: "",
     birthDate: "",
-    gender: ""
+    gender: "",
+    email: "",
   });
+
+  const [newEmployeeInfo, setNewEmployeeInfo] = useState(null);
 
   useEffect(() => {
     fetchEmployees();
@@ -24,8 +27,14 @@ function EmployeesPage() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    api.post("/employees", form).then(() => {
-      setForm({ name: "", surname: "", birthDate: "" });
+    api.post(`/employees?email=${form.email}`, {
+      name: form.name,
+      surname: form.surname,
+      birthDate: form.birthDate,
+      gender: form.gender,
+    }).then(res => {
+      setNewEmployeeInfo(res.data);
+      setForm({name: "", surname: "", birthDate: "", gender: "", email: ""});
       fetchEmployees();
     });
   };
@@ -55,6 +64,13 @@ function EmployeesPage() {
           required
         />
         <input
+          name="email"
+          placeholder="E-pasts"
+          value={form.email}
+          onChange={handleChange}
+          required
+        />
+        <input
           name="birthDate"
           type="date"
           value={form.birthDate}
@@ -69,6 +85,30 @@ function EmployeesPage() {
 
         <button type="submit">Pievienot</button>
       </form>
+
+      {newEmployeeInfo && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.5)",
+          display: "flex", alignItems: "center", justifyContent: "center" 
+        }}>
+          <div style={{
+            background: "white", padding: "2rem", borderRadius: "8px",
+            minWidth: "300px"
+          }}>
+
+            <h2>Darbinieks izveidots!</h2>
+            <p style={{color: "red"}}>
+                Pēc aizvēršanas informācija vairs nebūs pieejama!
+            </p>
+            <p><strong>E-pasts:</strong> {newEmployeeInfo.email}</p>
+            <p><strong>Parole:</strong>{newEmployeeInfo.password}</p>
+            <button onClick={() => setNewEmployeeInfo(null)}>
+              Aizvērt
+            </button>
+          </div>
+        </div>
+      )}
 
       <h2>Darbinieku saraksts</h2>
       <table border="1">

@@ -1,6 +1,7 @@
 package lv.grafiks.planotajs.service;
 
 
+import lv.grafiks.planotajs.dto.ChangePasswordRequest;
 import lv.grafiks.planotajs.dto.LoginRequest;
 import lv.grafiks.planotajs.dto.LoginResponse;
 import lv.grafiks.planotajs.model.User;
@@ -34,5 +35,20 @@ public class AuthService {
         return new LoginResponse(token, user.getRole().name());
 
     }
+
+    public void changePassword(String email, ChangePasswordRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Lietotājs nav atrasts"));
+
+        if(!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+            throw new RuntimeException("Parole nav pareiza");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+
+    }
+
 
 }

@@ -1,5 +1,6 @@
 package lv.grafiks.planotajs.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDate;
@@ -26,6 +27,7 @@ public class Employee {
     @Column(nullable = false)
     private LocalDate birthDate;
 
+    @JsonIgnore
     @OneToOne
     @JoinColumn(name = "user_id")
     private User user;
