@@ -5,6 +5,9 @@ function SchedulePage(){
     const [year, setYear] = useState(2026);
     const [month, setMonth] = useState(4);
     const [data,setData] = useState(null);
+    const [editModal, setEditModal] = useState(null);
+    const [editForm, setEditForm] = useState(null);
+    const role = localStorage.getItem("role");
 
     useEffect(() => {
         fetchSchedule();
@@ -36,6 +39,55 @@ function SchedulePage(){
         const dayNames = ["Sv", "P", "O", "T", "C", "Pk", "S"];
         return `${day.substring(8)} ${dayNames[date.getDay()]}`;
     };
+
+    const handleCellClick = (employee, day) => {
+        if (role !== "ADMIN") return;
+        const shift = getShift(employee.id, day);
+        setEditModal({employee, day, shift});
+        setEditForm({
+            start: shift ? shift.start.substring(11,16) : "11:00",
+            end: shift ? shift.end.substring(11,16) : "20:00"
+        });
+    };
+
+    const handleSave = () => {
+        const {employee, day, shift} = editModal;
+
+        if (shift) {
+            api.put(`/schedules/shifts/${shift.id}`, {
+                ...shift,
+                start: `${day}T${editForm.start}:00`,
+                end: `${day}T${editForm.end}:00`,
+            }).then(() => {
+                fetchSchedule();
+                setEditModal(null);
+            });
+        } else {
+            api.post("/schedules/shifts", {
+                employee: {id: employee.id},
+                schedule: {id: data.scheduleId},
+                start: `${day}T${editForm.start}:00`,
+                end: `${day}T${editForm.end}:00`
+            }).then(() => {
+                fetchSchedule();
+                setEditModal(null);
+            });
+        }
+
+    };
+
+    const handleDelete = () => {
+        const {shift} = editModal;
+        if(!shift) {
+            setEditModal(null);
+            return;
+        }
+        api.delete(`/schedules/shifts/${shift.id}`).then(() => {
+            fetchSchedule();
+            setEditModal(null);
+        });
+    };
+
 
     return (
         <div>
@@ -77,11 +129,14 @@ function SchedulePage(){
                                     {data.employees.map(emp => {
                                         const shift = getShift(emp.id,day);
                                         return(
-                                            <td key={emp.id} style={{
+                                            <td key={emp.id}
+                                            onClick={() => handleCellClick(emp,day)}
+                                            style={{
                                                 padding: "4px 8px",
                                                 textAlign: "center",
                                                 background: shift ? "#e8f5e9" : "#fafafa",
-                                                color: shift ? "#2e7d32" : "#999"
+                                                color: shift ? "#2e7d32" : "#999",
+                                                cursor: role === "ADMIN" ? "pointer" : "default"
                                             }}>
                                                 {formatTime(shift)}
                                             </td>
@@ -92,6 +147,55 @@ function SchedulePage(){
                         </tbody>
                     </table>
                 </div>
+            )}
+
+            {editModal && (
+                <div style={{
+                    position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+                    background: "rgba(0,0,0,0.5)",
+                    display: "flex", alignItems: "center", justifyContent: "center"
+                }}>
+                    <div style={{
+                        background: "white", padding: "2rem",
+                        borderRadius: "8px", minWidth: "300px"
+                    }}>
+                        <h2>
+                            {editModal.employee.name} {editModal.employee.surname}
+                            {" - "}{editModal.day}
+                        </h2>
+                        <div>
+                            <label>Sākums</label>
+                            <input
+                                type="time"
+                                value={editForm.start}
+                                onChange={e => setEditForm({...editForm, start: e.target.value})}
+                            />
+                        </div>
+                        <div>
+                            <label>Beigas:</label>
+                            <input
+                                type="time"
+                                value={editForm.end}
+                                onChange={e => setEditForm({...editForm, end: e.target.value})}
+                            />
+                        </div>
+                        <div style={{marginTop: "1rem"}}>
+                            <button onClick={handleSave} >
+                                {editModal.shift ? "Saglabāt" : "Pievienot maiņu"}
+                            
+                            </button>
+                            <button onClick={handleDelete} style={{marginLeft: "0.5rem"}}>
+                                {editModal.shift ? "Dzēst maiņu" : "Atcelt"}
+                            </button>
+                            <button
+                            onClick={() => setEditModal(null)}
+                            style={{marginLeft: "0.5rem"}}
+                            >
+                                Aizvērt
+                            </button>
+                    </div>
+                </div>
+            </div>
             )}
         </div>
     );

@@ -55,7 +55,7 @@ public class ScheduleController {
         return scheduleService.getShiftsBySchedule(id);
     }
 
-    @GetMapping("/shifts")
+    @PostMapping("/shifts")
     public Shift createShift(@RequestBody Shift shift) {
         return scheduleService.saveShift(shift);
     }
@@ -64,6 +64,13 @@ public class ScheduleController {
     public void deleteShift(@PathVariable long id) {
         scheduleService.deleteShift(id);
     }
+
+    @PutMapping("/shifts/{id}")
+    public Shift updateShift(@PathVariable long id, @RequestBody Shift shift) {
+        shift.setId(id);
+        return scheduleService.saveShift(shift);
+    }
+
 
     @GetMapping("/{year}/{month}/view")
     public Map<String, Object> getScheduleView(@PathVariable int year, @PathVariable int month) {
