@@ -6,6 +6,7 @@ import LoginPage from "./pages/LoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useState } from "react";
 import ProfilePage from "./pages/ProfilePage";
+import DayOffPage from "./pages/DayOffPage";
 
 function App() {
 
@@ -34,6 +35,7 @@ function App() {
           <button onClick={handleLogout}>Iziet</button>
           <Link to="/schedule">Grafiks</Link>
           <Link to="/profile">Profils</Link>
+          <Link to="/dayoff">Brīvdienu pieprasījumi</Link>
         </>
       )}
       <Routes>
@@ -42,6 +44,7 @@ function App() {
         <Route path="/schedule" element= {<ProtectedRoute><SchedulePage /></ProtectedRoute>} />
         <Route path="/generate" element={<ProtectedRoute adminOnly={true}><GeneratePage/></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><ProfilePage/></ProtectedRoute>}/>
+        <Route path="/dayoff" element={<ProtectedRoute><DayOffPage/></ProtectedRoute>}/>
         <Route path="/" element={<Navigate to="/login" />} />
       </Routes>
     </BrowserRouter>
