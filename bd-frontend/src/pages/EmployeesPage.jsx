@@ -44,7 +44,7 @@ function EmployeesPage() {
   };
 
   return (
-    <div>
+    <div className="container">
       <h1>Darbinieki</h1>
 
       <h2>Pievienot darbinieku</h2>

@@ -50,7 +50,7 @@ function ProfilePage() {
 
     return (
 
-        <div>
+        <div className="container">
             <h1>Profils</h1>
 
             <p><strong>Vārds:</strong> {profile.name || "-"}</p>

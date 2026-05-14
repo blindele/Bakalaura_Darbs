@@ -65,6 +65,11 @@ public class EmployeeService {
     public void delete(Long id) {
 
         Employee employee = getById(id);
+        User user  = employee.getUser();
+
+        employee.setUser(null);
+        employeeRepository.save(employee);
+
         if(employee.getUser() != null){
             userRepository.delete(employee.getUser());
         }

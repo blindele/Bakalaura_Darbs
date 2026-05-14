@@ -23,7 +23,7 @@ function LoginPage() {
     };
 
     return (
-        <div>
+        <div className="container">
             <h1>Pieslēgties</h1>
             <div>
                 <input

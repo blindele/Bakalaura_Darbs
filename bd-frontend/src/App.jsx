@@ -23,21 +23,22 @@ function App() {
 
   return (
     <BrowserRouter>
-    {token && role === "ADMIN" && (
+    {token && (
       <nav>
-        <Link to="/employees">Darbinieki</Link>
-        <Link to="/schedule">Grafiks</Link>
-        <Link to="/generate">Ģenerēt grafiku</Link>
-      </nav>
-      )}
-      {token && (
+          <div className="container" style={{display: "flex", alignItems: "center", gap: "20px"}}>
+        {role === "ADMIN" && (
         <>
-          <button onClick={handleLogout}>Iziet</button>
+        <Link to="/employees">Darbinieki</Link>
+        <Link to="/generate">Ģenerēt grafiku</Link>
+        </>
+      )}
           <Link to="/schedule">Grafiks</Link>
           <Link to="/profile">Profils</Link>
           <Link to="/dayoff">Brīvdienu pieprasījumi</Link>
-        </>
-      )}
+          <button onClick={handleLogout}>Iziet</button>
+          </div>
+        </nav>
+    )}
       <Routes>
         <Route path="/login" element={<LoginPage/>} />
         <Route path="/employees" element={<ProtectedRoute adminOnly={true}><EmployeesPage /></ProtectedRoute>} />

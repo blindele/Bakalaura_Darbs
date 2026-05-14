@@ -88,9 +88,19 @@ function SchedulePage(){
         });
     };
 
+    const getTotalHours = (employeeId) => {
+        if( !data?.shifts) return 0;
+        const empShifts = data.shifts.filter(s => s.employee.id === employeeId);
+        return empShifts.reduce((total, shift) => {
+            const start = new Date(shift.start);
+            const end = new Date(shift.end);
+            return total + (end - start) / (1000 * 60 * 60);
+        }, 0);
+    };
+
 
     return (
-        <div>
+        <div className="container">
             <h1>Darba grafiks</h1>
 
             <div>
@@ -145,6 +155,24 @@ function SchedulePage(){
                                 </tr>
                             ))}
                         </tbody>
+                        <tfoot>
+                            <tr>
+                                <td style={{padding: "4px 8px", fontWeight: "bold"}}>
+                                    Stundas:
+                                </td>
+                                {data.employees.map(emp => (
+                                    <td key={emp.id} style={{
+                                        padding: "4px 8px",
+                                        textAlign: "center",
+                                        fontWeight: "bold",
+                                        background: "#e8f5e9",
+                                        color: "#2e7d32"
+                                    }}>
+                                        {getTotalHours(emp.id)}h
+                                    </td>
+                                ))}
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             )}

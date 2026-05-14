@@ -35,7 +35,7 @@ function GeneratePage() {
 
 
     return (
-        <div>
+        <div className="container">
             <h1>Ģenerēt grafiku</h1>
             <form onSubmit={handleSubmit}>
                 <div>

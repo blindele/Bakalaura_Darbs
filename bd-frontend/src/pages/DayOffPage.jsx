@@ -60,7 +60,7 @@ function DayOffPage() {
 
 
     return (
-        <div>
+        <div className="container">
             <h1>Brīvdienu pieprasījumi</h1>
 
 

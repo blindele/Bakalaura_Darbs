@@ -1,0 +1,119 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f9f9f9;
+    color: #333333;
+    margin: 0;
+    padding: 0;
+}
+
+nav {
+    background: #2E7D32;
+    padding: 12px 0;
+    display: flex;
+    align-items: center;
+
+}
+
+nav a {
+    color: white;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+nav a:hover {
+    text-decoration: underline;
+}
+
+nav button {
+    background: white;
+    color: #2E7D32;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    margin-left: auto;
+}
+
+nav button:hover {
+    background: #e8f5e9;
+}
+
+h1 {
+    color: #2E7D32;
+    margin: 24px;
+    font-size: 24px;
+}
+
+h2 {
+    color: #333;
+    margin: 16px 24px 8px 24px;
+    font-size: 18px;
+}
+
+div > input, div > select {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    margin: 4px;
+}
+
+button {
+    background: #2E7D32;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    margin: 4px;
+}
+
+button:hover {
+    background: #1B5E20;
+}
+
+table {
+    margin: 0 24px;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+th {
+    background: #2E7D32;
+    color: white;
+    padding: 8px 12px;
+    text-align: left;
+}
+
+td {
+    padding: 6px 12px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+tr:hover {
+    background: #f1f8f1;
+}
+
+p {
+    margin: 8px 24px;
+}
+
+.container {
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+
+#root {
+    width: 100%;
+}
