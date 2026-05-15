@@ -112,7 +112,12 @@ public class ScheduleGenerator {
                     }
                 } else {
                     int off1 = i % week.size();
-                    int off2 = (off1 + 1) % week.size();
+                    int off2 = off1 + 1;
+
+                    if(off2 >= week.size()){
+                        off1--;
+                        off2--;
+                    }
                     for (int j = 0; j < week.size(); j++) {
                         if (j == off1 || j == off2) {
                             offDaySet.add(week.get(j));
@@ -132,36 +137,51 @@ public class ScheduleGenerator {
             }
         }
 
+        Set<LocalDate> offs = new HashSet<>(allDates);
+        offs.removeAll(workDays);
         int currentWorkDays = workDays.size();
+
         if (currentWorkDays > neededWorkDays) {
             int extra = currentWorkDays - neededWorkDays;
-            double step = (double) currentWorkDays / extra;
-            List<LocalDate> trimmed = new ArrayList<>();
 
-            for (int j = 0; j < workDays.size(); j++) {
-                LocalDate day = workDays.get(j);
-                boolean shouldSkip = false;
-                for (int k = 0; k < extra; k++) {
-                    if (j == (int) (k * step + step / 2)) {
-                        shouldSkip = true;
-                        break;
+            while (extra > 0) {
+                LocalDate day = null;
+                int sc = -1;
+                for(LocalDate d : workDays){
+                    if(dayOffCount.get(d) >= maxDayOff) continue;
+                    int s = 0;
+                    if(offs.contains(d.minusDays(1))) sc++;
+                    if(offs.contains(d.plusDays(1))) sc++;
+                    if (s > sc) {
+                        sc = s;
+                        day = d;
                     }
                 }
-                if (shouldSkip && dayOffCount.get(day) < maxDayOff) {
-                    dayOffCount.put(day, dayOffCount.get(day) + 1);
-                } else {
-                    trimmed.add(day);
-                }
+                if(day == null) break;
+                workDays.remove(day);
+                offs.add(day);
+                dayOffCount.put(day, dayOffCount.get(day) + 1);
+                extra--;
             }
-            workDays = trimmed;
         } else if (currentWorkDays < neededWorkDays) {
             int missing = neededWorkDays - currentWorkDays;
-            List<LocalDate> offList = new ArrayList<>(offDaySet);
-            double step = (double) offList.size() / missing;
-            for (int k = 0; k < missing && k < offList.size(); k++) {
-                LocalDate toAdd = offList.get((int) (k * step));
-                workDays.add(toAdd);
-                dayOffCount.put(toAdd, dayOffCount.get(toAdd) - 1);
+            while (missing > 0) {
+                LocalDate badOff = null;
+                int sc = Integer.MAX_VALUE;
+                for(LocalDate d : offs) {
+                    int s = 0;
+                    if(offs.contains(d.minusDays(1))) s++;
+                    if(offs.contains(d.plusDays(1))) s++;
+                    if(s < sc) {
+                        sc = s;
+                        badOff = d;
+                    }
+                }
+                if(badOff == null) break;
+                workDays.add(badOff);
+                offs.remove(badOff);
+                dayOffCount.put(badOff, dayOffCount.get(badOff) - 1);
+                missing--;
             }
             Collections.sort(workDays);
         }
