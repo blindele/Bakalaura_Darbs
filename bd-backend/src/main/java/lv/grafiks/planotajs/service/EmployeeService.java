@@ -10,6 +10,7 @@ import lv.grafiks.planotajs.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -43,23 +44,50 @@ public class EmployeeService {
 
     public CreateEmployeeResponse save(Employee employee, String email) {
 
-        String surname = employee.getSurname().length() >= 4
-                ? employee.getSurname().substring(0, 4)
-                : employee.getSurname();
-        String year = String.valueOf(employee.getBirthDate().getYear());
-        String rawPassword = surname + year;
+        if(!employee.isPermanent() &&
+            (employee.getWorkingMonths() == null || employee.getWorkingMonths().isEmpty())) {
+            throw new RuntimeException("Jānorāda vismaz viens mēnesis");
+        }
 
-        User user = new User();
-        user.setEmail(email);
-        user.setPassword(passwordEncoder.encode(rawPassword));
-        user.setRole(Role.EMPLOYEE);
-        user = userRepository.save(user);
+        if (employee.getWorkingMonths() != null) {
+            for (Integer month : employee.getWorkingMonths()) {
+                if (month == null || month < 1 || month > 12) {
+                    throw new RuntimeException("Mēneša vērtībai jābūt no 1 līdz 12");
+                }
+            }
+        }
 
-        employee.setUser(user);
+        if (employee.isPermanent()) {
+            employee.getWorkingMonths().clear();
+        }
+
+
+        if(employee.getId() == null) {
+
+            String surname = employee.getSurname().length() >= 4
+                    ? employee.getSurname().substring(0, 4)
+                    : employee.getSurname();
+            String year = String.valueOf(employee.getBirthDate().getYear());
+            String rawPassword = surname + year;
+
+            User user = new User();
+            user.setEmail(email);
+            user.setPassword(passwordEncoder.encode(rawPassword));
+            user.setRole(Role.EMPLOYEE);
+            user = userRepository.save(user);
+
+            employee.setUser(user);
+            Employee saved = employeeRepository.save(employee);
+
+            return new CreateEmployeeResponse(saved, email, rawPassword);
+        }
+
         Employee saved = employeeRepository.save(employee);
-
-        return new CreateEmployeeResponse(saved, email, rawPassword);
-
+        if (saved.getUser() != null) {
+            saved.getUser().setEmail(email);
+            userRepository.save(saved.getUser());
+        }
+        return new CreateEmployeeResponse(saved, email, null);
     }
 
     public void delete(Long id) {
@@ -74,6 +102,29 @@ public class EmployeeService {
             userRepository.delete(employee.getUser());
         }
         employeeRepository.deleteById(id);
+
+    }
+
+    public List<Employee> getPendingDeactivation() {
+        int currentMonth = LocalDate.now().getMonthValue();
+        return employeeRepository.findPendingDeactivation(currentMonth);
+    }
+
+    public void deactivate(Long id) {
+        Employee employee = getById(id);
+
+        if(!employee.isActive()) {
+            throw new RuntimeException("Darbinieks jau ir deaktivizēts");
+        }
+
+        User user = employee.getUser();
+        employee.setUser(null);
+        employee.setActive(false);
+        employeeRepository.save(employee);
+
+        if(user != null){
+            userRepository.delete(user);
+        }
 
     }
 

@@ -43,4 +43,14 @@ public class EmployeeController {
         return employeeService.save(employee,email);
     }
 
+    @GetMapping("/pending-deactivation")
+    public List<Employee> getPendingDeactivation(){
+        return employeeService.getPendingDeactivation();
+    }
+
+    @PostMapping("/{id}/deactivate")
+    public void deactivate(@PathVariable Long id){
+        employeeService.deactivate(id);
+    }
+
 }

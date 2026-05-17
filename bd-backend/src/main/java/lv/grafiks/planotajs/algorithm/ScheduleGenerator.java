@@ -46,13 +46,27 @@ public class ScheduleGenerator {
         MonthNorm norm = monthNormRepository.findByYearAndMonth(year, month)
                 .orElseThrow(() -> new RuntimeException("Mēneša norma nav atrasta"));
 
+        long shiftHours = java.time.Duration.between(shiftStart, shiftEnd).toHours();
+        LocalDate scheduleStart = LocalDate.of(year, month, 1);
+        boolean shiftIllegalForMinor = shiftHours > 7 || shiftEnd.isAfter(LocalTime.of(22,0));
+
         List<Employee> allEmployees = employeeRepository.findAll();
-        if (allEmployees.size() < requiredEmployees) {
-            throw new RuntimeException("Nepietiekami darbinieku");
+        List<Employee> eligibleEmployees = new ArrayList<>();
+        for (Employee e : allEmployees) {
+            if(!e.isActive()) continue;
+            if(!e.worksInMonth(month)) continue;
+            if(shiftIllegalForMinor && !e.isAdult(scheduleStart)) continue;
+            eligibleEmployees.add(e);
         }
 
-        Collections.shuffle(allEmployees);
-        List<Employee> selected = new ArrayList<>(allEmployees.subList(0, requiredEmployees));
+        if(eligibleEmployees.size() < requiredEmployees) {
+            throw new RuntimeException(
+                    "Nepietiekami darbinieki, kas atbilst prasībām"
+            );
+        }
+
+        Collections.shuffle(eligibleEmployees);
+        List<Employee> selected = new ArrayList<>(eligibleEmployees.subList(0, requiredEmployees));
 
         Schedule schedule = scheduleRepository.findByYearAndMonth(year, month)
                 .orElse(new Schedule());
@@ -66,7 +80,6 @@ public class ScheduleGenerator {
 
         shiftRepository.deleteAll(shiftRepository.findByScheduleId(schedule.getId()));
 
-        long shiftHours = java.time.Duration.between(shiftStart, shiftEnd).toHours();
         int totalDays = LocalDate.of(year, month, 1).lengthOfMonth();
         int maxDayOff = requiredEmployees - minPerDay;
 
@@ -150,8 +163,8 @@ public class ScheduleGenerator {
                 for(LocalDate d : workDays){
                     if(dayOffCount.get(d) >= maxDayOff) continue;
                     int s = 0;
-                    if(offs.contains(d.minusDays(1))) sc++;
-                    if(offs.contains(d.plusDays(1))) sc++;
+                    if(offs.contains(d.minusDays(1))) s++;
+                    if(offs.contains(d.plusDays(1))) s++;
                     if (s > sc) {
                         sc = s;
                         day = d;
