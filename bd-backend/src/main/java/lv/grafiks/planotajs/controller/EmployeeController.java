@@ -1,5 +1,7 @@
 package lv.grafiks.planotajs.controller;
 
+import lv.grafiks.planotajs.dto.BulkEmployeeRequest;
+import lv.grafiks.planotajs.dto.BulkEmployeeResponse;
 import lv.grafiks.planotajs.dto.CreateEmployeeResponse;
 import lv.grafiks.planotajs.model.Employee;
 import lv.grafiks.planotajs.repository.EmployeeRepository;
@@ -51,6 +53,11 @@ public class EmployeeController {
     @PostMapping("/{id}/deactivate")
     public void deactivate(@PathVariable Long id){
         employeeService.deactivate(id);
+    }
+
+    @PostMapping("/bulk")
+    public BulkEmployeeResponse createBulk(@RequestBody List<BulkEmployeeRequest> requests) {
+        return employeeService.saveBulk(requests);
     }
 
 }
