@@ -28,22 +28,6 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) {
         // Darbinieki
-        if (employeeRepository.count() == 0) {
-            Employee e1 = new Employee();
-            e1.setName("Jānis");
-            e1.setSurname("Bērziņš");
-            e1.setBirthDate(LocalDate.of(2000, 5, 10));
-            e1.setGender(Gender.MALE);
-            employeeRepository.save(e1);
-
-            Employee e2 = new Employee();
-            e2.setName("Anna");
-            e2.setSurname("Kalniņa");
-            e2.setBirthDate(LocalDate.of(2008, 3, 15));
-            e2.setGender(Gender.FEMALE);
-            employeeRepository.save(e2);
-        }
-
         // Mēneša normas 2026
         if (monthNormRepository.count() == 0) {
             int[][] norms = {

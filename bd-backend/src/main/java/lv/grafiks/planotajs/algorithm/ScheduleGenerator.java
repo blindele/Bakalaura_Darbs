@@ -198,6 +198,71 @@ public class ScheduleGenerator {
                     dayOffCount.put(day, dayOffCount.get(day) + 1);
                     extra--;
                 }
+                boolean changed = true;
+                int safety = 0;
+                while (changed && safety < 100) {
+                    changed = false;
+                    safety++;
+
+                    LocalDate seriesStart = null;
+                    int seriesLen = 0;
+                    int currentLen = 0;
+                    LocalDate currentStart = null;
+
+                    for (LocalDate d : allDates) {
+                        if (offs.contains(d)) {
+                            if (currentLen == 0) currentStart = d;
+                            currentLen++;
+                            if (currentLen > 3 && seriesStart == null) {
+                                seriesStart = currentStart;
+                                seriesLen = currentLen;
+                            }
+                        } else {
+                            if (seriesStart != null) break;
+                            currentLen = 0;
+                            currentStart = null;
+                        }
+                    }
+
+                    if (seriesStart == null) break; // nav 4+ sēriju
+
+                    LocalDate middleOff = seriesStart.plusDays(seriesLen / 2);
+
+                    LocalDate replacementDay = null;
+                    for (LocalDate d : workDays) {
+                        if (dayOffCount.get(d) >= maxDayOff) continue;
+
+                        int left = 0;
+                        LocalDate prev = d.minusDays(1);
+                        while (offs.contains(prev) && !prev.equals(middleOff)) {
+                            left++;
+                            prev = prev.minusDays(1);
+                        }
+                        int right = 0;
+                        LocalDate next = d.plusDays(1);
+                        while (offs.contains(next) && !next.equals(middleOff)) {
+                            right++;
+                            next = next.plusDays(1);
+                        }
+                        if (left + 1 + right <= 3) {
+                            replacementDay = d;
+                            break;
+                        }
+                    }
+
+                    if (replacementDay != null) {
+                        offs.remove(middleOff);
+                        workDays.add(middleOff);
+                        dayOffCount.put(middleOff, dayOffCount.get(middleOff) - 1);
+
+                        workDays.remove(replacementDay);
+                        offs.add(replacementDay);
+                        dayOffCount.put(replacementDay, dayOffCount.get(replacementDay) + 1);
+
+                        Collections.sort(workDays);
+                        changed = true;
+                    }
+                }
             } else if (currentWorkDays < neededWorkDays) {
                 int missing = neededWorkDays - currentWorkDays;
                 while (missing > 0) {

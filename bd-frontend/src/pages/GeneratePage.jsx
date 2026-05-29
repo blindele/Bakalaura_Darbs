@@ -38,6 +38,33 @@ function GeneratePage() {
         <div className="container">
             <h1>Ģenerēt grafiku</h1>
             <form onSubmit={handleSubmit}>
+                <div style={{ margin: "0.75rem 0" }}>
+                    <label>Algoritma pieeja:</label>
+                        <div>
+                            <label>
+                                <input
+                                type="radio"
+                                name="algorithmVersion"
+                                value="V1"
+                                checked={form.algorithmVersion === "V1"}
+                                onChange={handleChange}
+                                />
+                                {" "}Darbinieka orientēts
+                            </label>
+                        </div>
+                        <div>
+                            <label>
+                                <input
+                                    type="radio"
+                                    name="algorithmVersion"
+                                    value="V2"
+                                    checked={form.algorithmVersion === "V2"}
+                                    onChange={handleChange}
+                                />
+                                {" "}Dienas orientēts
+                            </label>
+                        </div>
+                    </div>
                 <div>
                     <label>Gads:</label>
                     <select name="year" value={form.year} onChange={handleChange}>

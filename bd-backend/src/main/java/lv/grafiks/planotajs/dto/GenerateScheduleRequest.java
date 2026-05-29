@@ -10,5 +10,16 @@ public class GenerateScheduleRequest {
     private String shiftEnd;
     private int requiredEmployees;
     private int minEmployeesPerDay;
+    private String algorithmType = "Pirmais";
+
+
+    public String getAlgorithmType() {
+        return algorithmType;
+    }
+
+    public void setAlgorithmType(String algorithmType) {
+        this.algorithmType = algorithmType;
+    }
+
 }
 

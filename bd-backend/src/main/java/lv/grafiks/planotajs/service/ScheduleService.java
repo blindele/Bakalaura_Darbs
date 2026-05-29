@@ -1,5 +1,8 @@
 package lv.grafiks.planotajs.service;
 
+import lv.grafiks.planotajs.algorithm.ScheduleGenerator;
+import lv.grafiks.planotajs.algorithm.ScheduleGenerator2;
+import lv.grafiks.planotajs.dto.GenerateScheduleRequest;
 import lv.grafiks.planotajs.model.Schedule;
 import lv.grafiks.planotajs.model.Shift;
 import lv.grafiks.planotajs.repository.ScheduleRepository;
@@ -11,10 +14,14 @@ import java.util.List;
 @Service
 public class ScheduleService {
 
+    private final ScheduleGenerator scheduleGenerator;
+    private final ScheduleGenerator2 scheduleGenerator2;
     private ScheduleRepository scheduleRepository;
     private ShiftRepository shiftRepository;
 
-    public ScheduleService(ScheduleRepository scheduleRepository, ShiftRepository shiftRepository) {
+    public ScheduleService(ScheduleGenerator scheduleGenerator,ScheduleGenerator2 scheduleGenerator2 ,ScheduleRepository scheduleRepository, ShiftRepository shiftRepository) {
+        this.scheduleGenerator = scheduleGenerator;
+        this.scheduleGenerator2 = scheduleGenerator2;
         this.scheduleRepository = scheduleRepository;
         this.shiftRepository = shiftRepository;
     }
@@ -42,4 +49,12 @@ public class ScheduleService {
     public void deleteShift(Long shiftId) {
         shiftRepository.deleteById(shiftId);
     }
+
+    public Schedule generate(GenerateScheduleRequest request) {
+        if ("Otrais".equals(request.getAlgorithmType())) {
+            return scheduleGenerator2.generate(request);
+        }
+        return scheduleGenerator.generate(request);
+    }
+
 }

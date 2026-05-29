@@ -1,14 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import api from "../api/api";
 
 const MONTH_NAMES = [
   "Janvāris", "Februāris", "Marts", "Aprīlis", "Maijs", "Jūnijs",
   "Jūlijs", "Augusts", "Septembris", "Oktobris", "Novembris", "Decembris"
 ];
-
 function EmployeesPage() {
   const [employees, setEmployees] = useState([]);
   const [pendingDeactivation, setPendingDeactivation] = useState([]);
+  const [createdUsers, setCreatedUsers] = useState([]);
+  const [bulkErrors, setBulkErrors] = useState([]);
+  const [error, setError] = useState("");
+  const fileInput = useRef(null);
   const [form, setForm] = useState({
     name: "",
     surname: "",
@@ -18,9 +21,6 @@ function EmployeesPage() {
     permanent: true,
     workingMonths: [],
   });
-
-  const [newEmployeeInfo, setNewEmployeeInfo] = useState(null);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     fetchEmployees();
@@ -78,14 +78,63 @@ function EmployeesPage() {
       permanent: form.permanent,
       workingMonths: form.workingMonths,
     }).then((res) => {
-      setNewEmployeeInfo(res.data);
+      setCreatedUsers((prev) => [...prev, res.data]); 
       setForm({name: "", surname: "", birthDate: "", gender: "", email: "", permanent: true, workingMonths: []});
       fetchEmployees();
       fetchPendingDeactivation();
     }).catch((err) => {
-    setError(err.response?.data?.message || "Radās kļūda");
+    setError(err.response?.data?.message || "Radās kļūda veidojot darbinieku");
   });
 };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    setError("");
+    setBulkErrors([]);
+
+    try {
+      const data = JSON.parse(await file.text());
+      const res = await api.post("/employees/bulk", data);
+      setCreatedUsers((prev) => [...prev, ...res.data.successful]);
+      setBulkErrors(res.data.failed || []);
+      fetchEmployees();
+      fetchPendingDeactivation();
+    } catch (ex) {
+      setError(ex.message || "Radās kļūda, pārbaudat failu un mēģinat vēlreiz");
+    } finally {
+      if (fileInput.current) fileInput.current.value = "";
+    }
+  };
+
+  const downloadCSV = () => {
+    if (createdUsers.length === 0) return;
+    const rows = [["Vārds", "Uzvārds", "E-pasts", "Parole"]];
+    createdUsers.forEach((c) =>
+      rows.push([c.employee?.name, c.employee?.surname, c.email, c.password])
+    );
+    const csv = rows.map((r) =>
+
+      r.map((cell) => `"${String(cell || "").replace(/"/g, '""')}"`).join(",")
+    ).join("\n");
+
+    const blob = new Blob(["\uFEFF" + csv], {type: "text/csv;charset=utf-8;"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `darbinieki_${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const clearCredentials = () => {
+    if (createdUsers.length === 0) return;
+    if (!window.confirm(
+      "Pēc apstiprināšanas dati vairs nebuus pieejami. Turpināt?"
+    )) return;
+    setCreatedUsers([]);
+    setBulkErrors([]);
+  };
 
   const handleDelete = (id) => {
     api.delete(`/employees/${id}`).then(() => {
@@ -110,19 +159,13 @@ function EmployeesPage() {
           background: "#fff4e5", border: "1px solid #f0b357",
           padding: "1rem", borderRadius: "6px", marginBottom: "1rem"
         }}>
-          <h2 style={{marginTop: 0}}>
-            Sezonas darbinieki, ko nepieciešams deaktivizēt ({pendingDeactivation.length})
+          <h2 style={{ marginTop: 0 }}>
+            Sezonas darbinieki, kuri beiguši darbu ({pendingDeactivation.length})
           </h2>
-          <p style={{marginTop: 0, fontSize: "0.9rem"}}>
-            Darbinieki savu laiku ir nostrādājuši un nepieciešamības gadījumā kontus var deaktivizēt
-          </p>
-          <table border="1" style={{width: "100%"}}>
+          <table border="1" style={{ width: "100%" }}>
             <thead>
               <tr>
-                <th>Vārds</th>
-                <th>Uzvārds</th>
-                <th>Mēneši</th>
-                <th>Darbības</th>
+                <th>Vārds</th><th>Uzvārds</th><th>Strādāja mēnešos</th><th>Darbības</th>
               </tr>
             </thead>
             <tbody>
@@ -132,14 +175,12 @@ function EmployeesPage() {
                   <td>{emp.surname}</td>
                   <td>
                     {[...(emp.workingMonths || [])]
-                      .sort((a,b) => a-b)
-                      .map((map) => MONTH_NAMES[m-1])
+                      .sort((a, b) => a - b)
+                      .map((m) => MONTH_NAMES[m - 1])
                       .join(", ")}
                   </td>
                   <td>
-                    <button onClick={() => handleDeactivate(emp.id)}>
-                      Deaktivizēt
-                    </button>
+                    <button onClick={() => handleDeactivate(emp.id)}>Deaktivizēt</button>
                   </td>
                 </tr>
               ))}
@@ -148,52 +189,27 @@ function EmployeesPage() {
         </div>
       )}
 
-      <h2>Pievienot darbinieku</h2>
+      <h2>Pievienot vienu darbinieku</h2>
       <form onSubmit={handleSubmit}>
-        <input
-          name="name"
-          placeholder="Vārds"
-          value={form.name}
-          onChange={handleChange}
-          required
-        />
-        <input
-          name="surname"
-          placeholder="Uzvārds"
-          value={form.surname}
-          onChange={handleChange}
-          required
-        />
-        <input
-          name="email"
-          type="email"
-          placeholder="E-pasts"
-          value={form.email}
-          onChange={handleChange}
-          required
-        />
-        <input
-          name="birthDate"
-          type="date"
-          value={form.birthDate}
-          onChange={handleChange}
-          required
-        />
+        <input name="name" placeholder="Vārds" value={form.name}
+          onChange={handleChange} required />
+        <input name="surname" placeholder="Uzvārds" value={form.surname}
+          onChange={handleChange} required />
+        <input name="email" type="email" placeholder="E-pasts" value={form.email}
+          onChange={handleChange} required />
+        <input name="birthDate" type="date" value={form.birthDate}
+          onChange={handleChange} required />
         <select name="gender" value={form.gender} onChange={handleChange} required>
-        <option value="">Izvēlies dzimumu</option>
-        <option value="MALE">Vīrietis</option>
-        <option value="FEMALE">Sieviete</option>
+          <option value="">Izvēlaties dzimumu</option>
+          <option value="MALE">Vīrietis</option>
+          <option value="FEMALE">Sieviete</option>
         </select>
 
-        <div style={{margin : "0.75rem 0"}}>
+        <div style={{ margin: "0.75rem 0" }}>
           <label>
-            <input
-              type="checkbox"
-              name="permanent"
-              checked={form.permanent}
-              onChange={handleChange}
-              />
-              {" "} Patstāvīgs darbinieks
+            <input type="checkbox" name="permanent"
+              checked={form.permanent} onChange={handleChange} />
+            {" "}Pastāvīgs darbinieks
           </label>
         </div>
 
@@ -202,24 +218,20 @@ function EmployeesPage() {
             border: "1px solid #ccc", padding: "0.75rem",
             borderRadius: "6px", marginBottom: "0.75rem"
           }}>
-            <div style={{marginBottom: "0.5rem"}}>
-              Mēneši, kuros darbinieks strādās:
+            <div style={{ marginBottom: "0.5rem" }}>
+              Atzīmē mēnešus, kuros darbinieks strādās:
             </div>
             <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat (4,1fr)",
-              gap: "0.25rem"
+              display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.25rem"
             }}>
               {MONTH_NAMES.map((monthName, idx) => {
                 const monthNumber = idx + 1;
                 return (
                   <label key={monthNumber}>
-                    <input
-                      type="checkbox"
+                    <input type="checkbox"
                       checked={form.workingMonths.includes(monthNumber)}
-                      onChange={() => handleMonthToggle(monthNumber)}
-                      />
-                      {" "}{monthName}
+                      onChange={() => handleMonthToggle(monthNumber)} />
+                    {" "}{monthName}
                   </label>
                 );
               })}
@@ -228,46 +240,101 @@ function EmployeesPage() {
         )}
 
         {error && (
-          <div style={{ color: "red", marginBottom: "0.75rem"}}>{error}</div>
+          <div style={{ color: "red", marginBottom: "0.75rem" }}>{error}</div>
         )}
 
         <button type="submit">Pievienot</button>
       </form>
 
-      {newEmployeeInfo && (
+      <h2 style={{ marginTop: "2rem" }}>Pievienot vairākus no JSON faila</h2>
+      <div style={{
+        border: "1px dashed #aaa", padding: "1rem", borderRadius: "6px"
+      }}>
+        <p style={{ marginTop: 0 }}>
+          Augšupielādē JSON failu ar darbinieku sarakstu.
+        </p>
+        <input
+          ref={fileInput}
+          type="file"
+          accept=".json,application/json"
+          onChange={handleFileUpload}
+        />
+      </div>
+
+      {createdUsers.length > 0 && (
         <div style={{
-          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(0,0,0,0.5)",
-          display: "flex", alignItems: "center", justifyContent: "center" 
+          background: "#e6f7e6", border: "1px solid #5cb85c",
+          padding: "1rem", borderRadius: "6px", marginTop: "1.5rem"
         }}>
           <div style={{
-            background: "white", padding: "2rem", borderRadius: "8px",
-            minWidth: "300px"
+            display: "flex", justifyContent: "space-between", alignItems: "center"
           }}>
-
-            <h2>Darbinieks izveidots!</h2>
-            <p style={{color: "red"}}>
-                Pēc aizvēršanas informācija vairs nebūs pieejama!
-            </p>
-            <p><strong>E-pasts:</strong> {newEmployeeInfo.email}</p>
-            <p><strong>Parole:</strong>{newEmployeeInfo.password}</p>
-            <button onClick={() => setNewEmployeeInfo(null)}>
-              Aizvērt
-            </button>
+            <h2 style={{ margin: 0 }}>
+              Tikko izveidotie darbinieki ({createdUsers.length})
+            </h2>
+            <div>
+              <button onClick={downloadCSV}>Lejupielādēt CSV</button>
+              {" "}
+              <button onClick={clearCredentials}>Notīrīt sarakstu</button>
+            </div>
           </div>
+          <p style={{ color: "#c00", fontSize: "0.9rem" }}>
+            Lejupielādē sarakstu, lai nezaudētu darbinieku ielogošanās informāciju.
+          </p>
+          <table border="1" style={{ width: "100%" }}>
+            <thead>
+              <tr>
+                <th>Vārds</th><th>Uzvārds</th><th>E-pasts</th><th>Parole</th>
+              </tr>
+            </thead>
+            <tbody>
+              {createdUsers.map((c, idx) => (
+                <tr key={idx}>
+                  <td>{c.employee?.name}</td>
+                  <td>{c.employee?.surname}</td>
+                  <td>{c.email}</td>
+                  <td style={{ fontFamily: "monospace" }}>{c.password}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-      <h2>Darbinieku saraksts</h2>
+      {bulkErrors.length > 0 && (
+        <div style={{
+          background: "#fbeaea", border: "1px solid #d9534f",
+          padding: "1rem", borderRadius: "6px", marginTop: "1rem"
+        }}>
+          <h2 style={{ marginTop: 0 }}>
+            Neizdevās izveidot ({bulkErrors.length})
+          </h2>
+          <table border="1" style={{ width: "100%" }}>
+            <thead>
+              <tr>
+                <th>Vārds</th><th>Uzvārds</th><th>E-pasts</th><th>Kļūda</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bulkErrors.map((err, idx) => (
+                <tr key={idx}>
+                  <td>{err.name}</td>
+                  <td>{err.surname}</td>
+                  <td>{err.email}</td>
+                  <td style={{ color: "#c00" }}>{err.error}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <h2 style={{ marginTop: "2rem" }}>Darbinieku saraksts</h2>
       <table border="1">
         <thead>
           <tr>
-            <th>Vārds</th>
-            <th>Uzvārds</th>
-            <th>Dzimšanas datums</th>
-            <th>Dzimums</th>
-            <th>Tips</th>
-            <th>Darbības</th>
+            <th>Vārds</th><th>Uzvārds</th><th>Dzimšanas datums</th>
+            <th>Dzimums</th><th>Tips</th><th>Darbības</th>
           </tr>
         </thead>
         <tbody>
@@ -281,9 +348,9 @@ function EmployeesPage() {
                 {emp.permanent
                   ? "Patstāvīgs"
                   : `Sezonas (${[...(emp.workingMonths || [])]
-                    .sort((a,b) => a-b)
-                    .map((m) => MONTH_NAMES[m-1].substring(0,3))
-                    .join(", ")})`}
+                      .sort((a, b) => a - b)
+                      .map((m) => MONTH_NAMES[m - 1].substring(0, 3))
+                      .join(", ")})`}
               </td>
               <td>
                 <button onClick={() => handleDelete(emp.id)}>Dzēst</button>
