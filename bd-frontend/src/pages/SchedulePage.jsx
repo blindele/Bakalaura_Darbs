@@ -7,6 +7,7 @@ function SchedulePage(){
     const [data,setData] = useState(null);
     const [editModal, setEditModal] = useState(null);
     const [editForm, setEditForm] = useState(null);
+    const [editError, setEditError] = useState("");
     const role = localStorage.getItem("role");
 
     useEffect(() => {
@@ -48,45 +49,91 @@ function SchedulePage(){
             start: shift ? shift.start.substring(11,16) : "11:00",
             end: shift ? shift.end.substring(11,16) : "20:00"
         });
+        setEditError("");
     };
 
-    const handleSave = () => {
-        const {employee, day, shift} = editModal;
+    const validateShift = () => {
+    if (!editForm.start || !editForm.end) {
+        return "Lūdzu norādiet sākuma un beigu laiku.";
+    }
 
-        if (shift) {
-            api.put(`/schedules/shifts/${shift.id}`, {
-                ...shift,
-                start: `${day}T${editForm.start}:00`,
-                end: `${day}T${editForm.end}:00`,
-            }).then(() => {
-                fetchSchedule();
-                setEditModal(null);
-            });
-        } else {
-            api.post("/schedules/shifts", {
-                employee: {id: employee.id},
-                schedule: {id: data.scheduleId},
-                start: `${day}T${editForm.start}:00`,
-                end: `${day}T${editForm.end}:00`
-            }).then(() => {
-                fetchSchedule();
-                setEditModal(null);
-            });
-        }
+    const [startH, startM] = editForm.start.split(":").map(Number);
+    const [endH, endM] = editForm.end.split(":").map(Number);
+    const startMinutes = startH * 60 + startM;
+    const endMinutes = endH * 60 + endM;
 
-    };
+    if (endMinutes <= startMinutes) {
+        return "Maiņas beigu laikam jābūt vēlāk par sākuma laiku.";
+    }
 
-    const handleDelete = () => {
-        const {shift} = editModal;
-        if(!shift) {
-            setEditModal(null);
-            return;
-        }
-        api.delete(`/schedules/shifts/${shift.id}`).then(() => {
+    const durationHours = (endMinutes - startMinutes) / 60;
+    if (durationHours < 1) {
+        return "Maiņas garumam jābūt vismaz 1 stundu.";
+    }
+    if (durationHours > 12) {
+        return "Maiņas garums nevar pārsniegt 12 stundas.";
+    }
+
+    return null;
+};
+
+const handleSave = () => {
+    setEditError("");
+
+    const validationError = validateShift();
+    if (validationError) {
+        setEditError(validationError);
+        return;
+    }
+
+    const {employee, day, shift} = editModal;
+
+    if (shift) {
+        api.put(`/schedules/shifts/${shift.id}`, {
+            ...shift,
+            start: `${day}T${editForm.start}:00`,
+            end: `${day}T${editForm.end}:00`,
+        }).then(() => {
             fetchSchedule();
-            setEditModal(null);
+            closeModal();
+        }).catch(err => {
+            setEditError(err.response?.data?.message || "Neizdevās saglabāt maiņu.");
         });
+    } else {
+        api.post("/schedules/shifts", {
+            employee: {id: employee.id},
+            schedule: {id: data.scheduleId},
+            start: `${day}T${editForm.start}:00`,
+            end: `${day}T${editForm.end}:00`
+        }).then(() => {
+            fetchSchedule();
+            closeModal();
+        }).catch(err => {
+            setEditError(err.response?.data?.message || "Neizdevās pievienot maiņu.");
+        });
+    }
+};
+
+    const closeModal = () => {
+        setEditModal(null);
+        setEditError("");
     };
+
+const handleDelete = () => {
+    const {shift} = editModal;
+    if (!shift) {
+        closeModal();
+        return;
+    }
+    if (!window.confirm("Vai tiešām vēlaties dzēst šo maiņu?")) return;
+
+    api.delete(`/schedules/shifts/${shift.id}`).then(() => {
+        fetchSchedule();
+        closeModal();
+    }).catch(err => {
+        setEditError(err.response?.data?.message || "Neizdevās dzēst maiņu.");
+    });
+};
 
     const getTotalHours = (employeeId) => {
         if( !data?.shifts) return 0;
@@ -207,6 +254,15 @@ function SchedulePage(){
                                 onChange={e => setEditForm({...editForm, end: e.target.value})}
                             />
                         </div>
+                        {editError && (
+                        <div style={{
+                            color: "red",
+                            marginTop: "0.75rem",
+                            marginBottom: "0.75rem"
+                        }}>
+                            {editError}
+                        </div>
+                        )}
                         <div style={{marginTop: "1rem"}}>
                             <button onClick={handleSave} >
                                 {editModal.shift ? "Saglabāt" : "Pievienot maiņu"}

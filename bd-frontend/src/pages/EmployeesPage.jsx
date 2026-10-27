@@ -50,6 +50,64 @@ function EmployeesPage() {
     }
   };
 
+  const validateEmployeeForm = () => {
+    const name = form.name.trim();
+    const surname = form.surname.trim();
+    const email = form.email.trim();
+
+    if (name.length < 2) {
+      return "Vārdam jābūt vismaz 2 rakstzīmju garam.";
+    }
+    if (name.length > 50) {
+      return "Vārds nedrīkst pārsniegt 50 rakstzīmes.";
+    }
+    if (!/^[A-Za-zĀ-žā-ž\s\-']+$/.test(name)) {
+      return "Vārdā drīkst būt tikai rakstzīmes, atstarpes un defise.";
+    }
+
+    if (surname.length < 2) {
+      return "Uzvārdam jābūt vismaz 2 rakstzīmju garam.";
+    }
+    if (surname.length > 50) {
+      return "Uzvārds nedrīkst pārsniegt 50 rakstzīmes.";
+    }
+    if (!/^[A-Za-zĀ-žā-ž\s\-']+$/.test(surname)) {
+      return "Uzvārdā drīkst būt tikai rakstzīmes, atstarpes un defise.";
+    }
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(email)) {
+      return "Lūdzu ievadiet derīgu e-pasta adresi.";
+    }
+
+    if (!form.birthDate) {
+      return "Lūdzu norādiet dzimšanas datumu.";
+    }
+    const birth = new Date(form.birthDate);
+    const today = new Date();
+    if (birth > today) {
+      return "Dzimšanas datums nevar būt nākotnē.";
+    }
+    const ageMs = today - birth;
+    const ageYears = ageMs / (1000 * 60 * 60 * 24 * 365.25);
+    if (ageYears < 14) {
+      return "Darbinieks nedrīkst būt jaunāks par 14 gadiem.";
+    }
+    if (ageYears > 80) {
+      return "Lūdzu pārbaudiet dzimšanas datumu (vecums pārsniedz 80 gadus).";
+    }
+
+    if (!form.gender) {
+      return "Lūdzu izvēlaties dzimumu.";
+    }
+
+    if (!form.permanent && form.workingMonths.length === 0) {
+      return "Nepieciešams norādīt vismaz vienu mēnesi sezonas darbiniekam.";
+    }
+
+    return null;
+  };
+
   const handleMonthToggle = (month) => {
     setForm((prev) => {
       const exists = prev.workingMonths.includes(month);
@@ -64,15 +122,16 @@ function EmployeesPage() {
     e.preventDefault();
     setError("");
 
-    if(!form.permanent && form.workingMonths.length === 0) {
-      setError("Nepieciešams norādīt vismaz vienu mēnesi");
+    const validationError = validateEmployeeForm();
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
 
     api.post(`/employees?email=${form.email}`, {
-      name: form.name,
-      surname: form.surname,
+      name: form.name.trim(),
+      surname: form.surname.trim(),
       birthDate: form.birthDate,
       gender: form.gender,
       permanent: form.permanent,
@@ -83,7 +142,7 @@ function EmployeesPage() {
       fetchEmployees();
       fetchPendingDeactivation();
     }).catch((err) => {
-    setError(err.response?.data?.message || "Radās kļūda veidojot darbinieku");
+    setError(err.response?.data?.message || "Radās kļūda veidojot darbinieku!");
   });
 };
 
@@ -93,8 +152,47 @@ function EmployeesPage() {
     setError("");
     setBulkErrors([]);
 
+    if (!file.name.toLowerCase().endsWith(".json")) {
+      setError("Lūdzu augšupielādējiet JSON failu.");
+      if (fileInput.current) fileInput.current.value = "";
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Faila izmērs nedrīkst pārsniegt 5 MB.");
+      if (fileInput.current) fileInput.current.value = "";
+      return;
+    }
+
     try {
-      const data = JSON.parse(await file.text());
+      const text = await file.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        setError("Fails nesatur derīgu JSON formātu.");
+        if (fileInput.current) fileInput.current.value = "";
+        return;
+      }
+
+      if (!Array.isArray(data)) {
+        setError("JSON failā jābūt darbinieku sarakstam.");
+        if (fileInput.current) fileInput.current.value = "";
+        return;
+      }
+
+      if (data.length === 0) {
+        setError("JSON fails ir tukšs.");
+        if (fileInput.current) fileInput.current.value = "";
+        return;
+      }
+
+      if (data.length > 200) {
+        setError("Vienlaicīgi var importēt ne vairāk kā 200 darbinieku.");
+        if (fileInput.current) fileInput.current.value = "";
+        return;
+      }
+
       const res = await api.post("/employees/bulk", data);
       setCreatedUsers((prev) => [...prev, ...res.data.successful]);
       setBulkErrors(res.data.failed || []);
@@ -130,13 +228,14 @@ function EmployeesPage() {
   const clearCredentials = () => {
     if (createdUsers.length === 0) return;
     if (!window.confirm(
-      "Pēc apstiprināšanas dati vairs nebuus pieejami. Turpināt?"
+      "Pēc apstiprināšanas dati vairs nebūs pieejami. Turpināt?"
     )) return;
     setCreatedUsers([]);
     setBulkErrors([]);
   };
 
   const handleDelete = (id) => {
+    if (!window.confirm("Vai tiešām vēlaties dzēst šo darbinieku?")) return;
     api.delete(`/employees/${id}`).then(() => {
       fetchEmployees();
       fetchPendingDeactivation();
@@ -144,6 +243,7 @@ function EmployeesPage() {
   };
 
   const handleDeactivate = (id) => {
+    if (!window.confirm("Vai tiešām vēlaties deaktivēt šo darbinieku?")) return;
     api.post(`/employees/${id}/deactivate`).then(() => {
       fetchEmployees();
       fetchPendingDeactivation();
@@ -192,11 +292,11 @@ function EmployeesPage() {
       <h2>Pievienot vienu darbinieku</h2>
       <form onSubmit={handleSubmit}>
         <input name="name" placeholder="Vārds" value={form.name}
-          onChange={handleChange} required />
+          onChange={handleChange} required maxLength={50} />
         <input name="surname" placeholder="Uzvārds" value={form.surname}
-          onChange={handleChange} required />
+          onChange={handleChange} required maxLength={50} />
         <input name="email" type="email" placeholder="E-pasts" value={form.email}
-          onChange={handleChange} required />
+          onChange={handleChange} required maxLength={100} />
         <input name="birthDate" type="date" value={form.birthDate}
           onChange={handleChange} required />
         <select name="gender" value={form.gender} onChange={handleChange} required>

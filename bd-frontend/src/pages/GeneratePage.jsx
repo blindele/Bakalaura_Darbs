@@ -18,20 +18,65 @@ function GeneratePage() {
         setForm({ ...form, [e.target.name]: e.target.value });
     };
 
-    const handleSubmit = (e) => {
-        setLoading(true);
-        setMessage("");
-        api.post("/schedules/generate", {
-            ...form,
-            year: Number(form.year),
-            month: Number(form.month),
-            requiredEmployees: Number(form.requiredEmployees),
-            minEmployeesPerDay: Number(form.minEmployeesPerDay),
-        })
-        .then(() => setMessage("Grafiks izveidots!"))
-        .catch((err) => setMessage("Kļūda " + (err.response?.data || err.message)))
-        .finally(() => setLoading(false));
+    const validateForm = () => {
+        const required = Number(form.requiredEmployees);
+        const minPerDay = Number(form.minEmployeesPerDay);
+
+        if (!Number.isInteger(required) || required < 1) {
+            return "Nepieciešamo darbinieku skaitam jābūt veselam skaitlim, kas lielāks par 0.";
+        }
+        if (required > 100) {
+            return "Nepieciešamo darbinieku skaits nevar pārsniegt 100.";
+        }
+        if (!Number.isInteger(minPerDay) || minPerDay < 1) {
+            return "Minimālajam darbinieku skaitam dienā jābūt veselam skaitlim, kas lielāks par 0.";
+        }
+        if (minPerDay > required) {
+            return "Minimālais darbinieku skaits dienā nevar pārsniegt nepieciešamo darbinieku skaitu.";
+        }
+
+        if (!form.shiftStart || !form.shiftEnd) {
+            return "Lūdzu norādiet maiņas sākuma un beigu laiku.";
+        }
+
+        const [startH, startM] = form.shiftStart.split(":").map(Number);
+        const [endH, endM] = form.shiftEnd.split(":").map(Number);
+        const startMinutes = startH * 60 + startM;
+        const endMinutes = endH * 60 + endM;
+
+        if (endMinutes <= startMinutes) {
+            return "Maiņas beigu laikam jābūt vēlāk par maiņas sākuma laiku.";
+        }
+        const durationHours = (endMinutes - startMinutes) / 60;
+        if (durationHours < 1) {
+            return "Maiņas garumam jābūt vismaz 1 stundu.";
+        }
+        if (durationHours > 12) {
+            return "Maiņas garums nevar pārsniegt 12 stundas.";
+        }
+
+        return null;
     };
+const handleSubmit = (e) => {
+    const validationError = validateForm();
+    if (validationError) {
+        setMessage(validationError);
+        return;
+    }
+
+    setLoading(true);
+    setMessage("");
+    api.post("/schedules/generate", {
+        ...form,
+        year: Number(form.year),
+        month: Number(form.month),
+        requiredEmployees: Number(form.requiredEmployees),
+        minEmployeesPerDay: Number(form.minEmployeesPerDay),
+    })
+    .then(() => setMessage("Grafiks izveidots!"))
+    .catch((err) => setMessage("Kļūda " + (err.response?.data || err.message)))
+    .finally(() => setLoading(false));
+};
 
 
     return (
